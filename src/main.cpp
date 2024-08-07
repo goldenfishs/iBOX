@@ -28,7 +28,7 @@ AsyncWebServer server(80);
 
 // 函数声明
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
-void handleUpload(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total);
+void handleTextUpload(AsyncWebServerRequest *request);
 
 void setup() {
   // 初始化串口
@@ -39,9 +39,9 @@ void setup() {
   digitalWrite(TFT_BLK, LOW);
 
   // 初始化显示屏
-  tft.init(SCREEN_WIDTH, SCREEN_HEIGHT);
+  tft.init(SCREEN_HEIGHT, SCREEN_WIDTH);
   tft.setRotation(1);
-  tft.fillScreen(ST77XX_RED);
+  tft.fillScreen(ST77XX_BLACK);
 
   // 初始化WiFi
   WiFi.begin(ssid, password);
@@ -50,6 +50,8 @@ void setup() {
     Serial.println("Connecting to WiFi...");
   }
   Serial.println("Connected to WiFi");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
 
   // 初始化LVGL
   lv_init();
@@ -71,11 +73,11 @@ void setup() {
   lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 
   // 初始化HTTP服务器
-  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, handleUpload);
+  server.on("/upload", HTTP_POST, handleTextUpload);
 
   // 添加一个简单的网页
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", "<html><body><h1>Hello, World!</h1><p>This is a simple web page.</p><form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='image'><input type='submit' value='Upload'></form></body></html>");
+    request->send(200, "text/html", "<html><body><h1>Hello, World!</h1><p>This is a simple web page.</p><form method='POST' action='/upload'><input type='text' name='text'><input type='submit' value='Upload'></form></body></html>");
   });
 
   server.begin();
@@ -87,34 +89,33 @@ void loop() {
   delay(5);
 }
 
-// 处理上传的图像数据
-void handleUpload(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-  static uint8_t imageData[SCREEN_WIDTH * SCREEN_HEIGHT * 2]; // 假设图像数据为RGB565格式
+// 处理上传的文字数据
+void handleTextUpload(AsyncWebServerRequest *request) {
+  if (request->hasParam("text", true)) {
+    String text = request->getParam("text", true)->value();
+    Serial.printf("Received text: %s\n", text.c_str());
 
-  if (index == 0) {
-    Serial.printf("UploadStart: %s\n", request->url().c_str());
-  }
+    // 在屏幕上显示接收到的文字
+    tft.fillScreen(ST77XX_WHITE);
+    tft.setTextSize(2); // 设置字体大小
+    tft.setTextColor(ST77XX_BLACK);
+    tft.setTextWrap(true);
 
-  // 将接收到的数据存储到imageData数组中
-  memcpy(imageData + index, data, len);
+    // 计算文字的宽度和高度
+    int16_t x1, y1;
+    uint16_t w, h;
+    tft.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
 
-  if (index + len == total) {
-    Serial.printf("UploadEnd: %s, %u B\n", request->url().c_str(), total);
+    // 居中显示文字
+    int16_t x = (SCREEN_WIDTH - w) / 2;
+    int16_t y = (SCREEN_HEIGHT - h) / 2;
+    tft.setCursor(x, y);
+    tft.print(text);
 
-    // 检查接收到的数据长度是否正确
-    if (total != sizeof(imageData)) {
-      Serial.println("Error: Image data size mismatch");
-      request->send(400, "text/plain", "Image data size mismatch");
-      return;
-    }
-
-    // 将接收到的数据写入显示屏
-    tft.startWrite();
-    tft.setAddrWindow(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    tft.writePixels((uint16_t*)imageData, SCREEN_WIDTH * SCREEN_HEIGHT);
-    tft.endWrite();
-
+    // 发送响应
     request->send(200, "text/plain", "Upload complete");
+  } else {
+    request->send(400, "text/plain", "No text received");
   }
 }
 
