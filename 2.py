@@ -4,8 +4,9 @@ import requests
 url = "http://192.168.2.7/upload_image"
 
 # 要上传的图片文件路径
-image_path = "E:\School\R\Robocon\hardware\esp32\code\iBOX\input.png"
-
+# image_path = "E:\School\R\Robocon\hardware\esp32\code\iBOX\input.png"
+# image_path = "E:\School\R\Robocon\hardware\esp32\code\iBOX\Robomaster.png"
+image_path = "E:\School\R\Robocon\hardware\esp32\code\iBOX\image.png"
 # 打开图片文件并发送POST请求
 with open(image_path, 'rb') as image_file:
     files = {'file': image_file}
