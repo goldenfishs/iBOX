@@ -3,8 +3,6 @@
 #include <Adafruit_ST7789.h>
 #include <lvgl.h>
 #include <ESPAsyncWebServer.h>
-#include <PNGdec.h>
-#include <SPIFFS.h> // 添加SPIFFS库
 
 // 自定义SPI引脚定义
 #define TFT_CS 16
@@ -28,18 +26,9 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RS
 // 创建HTTP服务器对象
 AsyncWebServer server(80);
 
-// PNG解码器对象
-PNG png;
-
 // 函数声明
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
 void handleUpload(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total);
-void *pngOpen(const char *filename, int32_t *size);
-void pngClose(void *handle);
-int32_t pngRead(PNGFILE *pngFile, uint8_t *buffer, int32_t length);
-int32_t pngSeek(PNGFILE *pngFile, int32_t position);
-int32_t pngTell(PNGFILE *pngFile);
-void PNGDraw(PNGDRAW *pDraw);
 
 void setup() {
   // 初始化串口
@@ -81,12 +70,6 @@ void setup() {
   lv_label_set_text(label, "Hello, LVGL!");
   lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 
-  // 初始化SPIFFS
-  if (!SPIFFS.begin(true)) {
-    Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
-  }
-
   // 初始化HTTP服务器
   server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, handleUpload);
 
@@ -106,38 +89,22 @@ void loop() {
 // 处理上传的图像数据
 void handleUpload(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
   static uint8_t imageData[SCREEN_WIDTH * SCREEN_HEIGHT * 2]; // 假设图像数据为RGB565格式
-  static File uploadFile;
 
   if (index == 0) {
     Serial.printf("UploadStart: %s\n", request->url().c_str());
-    uploadFile = SPIFFS.open("/upload.png", FILE_WRITE);
   }
 
-  // 将接收到的数据写入文件
-  if (uploadFile) {
-    uploadFile.write(data, len);
-  }
+  // 将接收到的数据存储到imageData数组中
+  memcpy(imageData + index, data, len);
 
   if (index + len == total) {
     Serial.printf("UploadEnd: %s, %u B\n", request->url().c_str(), total);
-    if (uploadFile) {
-      uploadFile.close();
-    }
 
-    // 解码PNG文件并显示
-    if (SPIFFS.exists("/upload.png")) {
-      int16_t rc = png.open("/upload.png", pngOpen, pngClose, pngRead, pngSeek, PNGDraw);
-      if (rc == PNG_SUCCESS) {
-        rc = png.decode(NULL, 0);
-        if (rc == PNG_SUCCESS) {
-          Serial.println("PNG decoded successfully");
-        } else {
-          Serial.printf("PNG decode error: %d\n", rc);
-        }
-      } else {
-        Serial.printf("PNG open error: %d\n", rc);
-      }
-    }
+    // 将接收到的数据写入显示屏
+    tft.startWrite();
+    tft.setAddrWindow(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    tft.writePixels((uint16_t*)imageData, SCREEN_WIDTH * SCREEN_HEIGHT);
+    tft.endWrite();
 
     request->send(200, "text/plain", "Upload complete");
   }
@@ -157,44 +124,4 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
   }
   tft.endWrite();
   lv_disp_flush_ready(disp);
-}
-
-// PNG解码回调函数
-void PNGDraw(PNGDRAW *pDraw) {
-  uint16_t lineBuffer[SCREEN_WIDTH];
-  png.getLineAsRGB565(pDraw, lineBuffer, PNG_RGB565_BIG_ENDIAN, 0xffffffff);
-  tft.startWrite();
-  tft.setAddrWindow(pDraw->iXOffset, pDraw->iYOffset, pDraw->iWidth, 1);
-  tft.writePixels(lineBuffer, pDraw->iWidth);
-  tft.endWrite();
-}
-
-// 文件操作回调函数
-File pngFile;
-void *pngOpen(const char *filename, int32_t *size) {
-  pngFile = SPIFFS.open(filename);
-  if (pngFile) {
-    *size = pngFile.size();
-    return &pngFile;
-  }
-  return NULL;
-}
-
-void pngClose(void *handle) {
-  File *file = static_cast<File*>(handle);
-  if (file) {
-    file->close();
-  }
-}
-
-int32_t pngRead(PNGFILE *pngFile, uint8_t *buffer, int32_t length) {
-  return pngFile->read(buffer, length);
-}
-
-int32_t pngSeek(PNGFILE *pngFile, int32_t position) {
-  return pngFile->seek(position);
-}
-
-int32_t pngTell(PNGFILE *pngFile) {
-  return pngFile->position();
 }
