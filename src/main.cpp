@@ -79,6 +79,7 @@ void setup() {
   });
 
   server.begin();
+  Serial.println("HTTP server started");
 }
 
 void loop() {
@@ -99,6 +100,13 @@ void handleUpload(AsyncWebServerRequest *request, uint8_t *data, size_t len, siz
 
   if (index + len == total) {
     Serial.printf("UploadEnd: %s, %u B\n", request->url().c_str(), total);
+
+    // 检查接收到的数据长度是否正确
+    if (total != sizeof(imageData)) {
+      Serial.println("Error: Image data size mismatch");
+      request->send(400, "text/plain", "Image data size mismatch");
+      return;
+    }
 
     // 将接收到的数据写入显示屏
     tft.startWrite();
