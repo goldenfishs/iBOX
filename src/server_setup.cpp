@@ -5,8 +5,9 @@
 #include "display_setup.h"
 #include <pngle.h> // 确保包含 pngle 库的头文件
 #include <WiFi.h> // 确保包含 WiFi 库的头文件
+#include "wifi_setup.h"
 
-AsyncWebServer server(80);
+AsyncWebServer server(90);
 
 void initServer() {
   server.on("/upload", HTTP_POST, handleTextUpload);
@@ -33,6 +34,9 @@ void initServer() {
     tft.print("IP Address:");
     tft.setCursor(0, 20);
     tft.print(WiFi.localIP().toString());
+    tft.setCursor(0, 40);
+    tft.print("IPV4 Address:");
+    tft.print(getExternalIP());
 }
 
 void handleTextUpload(AsyncWebServerRequest *request) {
