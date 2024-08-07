@@ -3,6 +3,8 @@
 #include <Adafruit_ST7789.h>
 #include <lvgl.h>
 #include <ESPAsyncWebServer.h>
+#include <SPIFFS.h>
+#include <pngle.h> // 添加PNG解码库
 
 // 自定义SPI引脚定义
 #define TFT_CS 16
@@ -29,10 +31,18 @@ AsyncWebServer server(80);
 // 函数声明
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
 void handleTextUpload(AsyncWebServerRequest *request);
+void handleImageUpload(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final);
+void pngle_draw_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint8_t *rgba);
 
 void setup() {
   // 初始化串口
   Serial.begin(115200);
+
+  // 初始化SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
 
   // 设置背光引脚为输出模式，并将其设置为低电平
   pinMode(TFT_BLK, OUTPUT);
@@ -80,6 +90,11 @@ void setup() {
     request->send(200, "text/html", "<html><body><h1>Hello, World!</h1><p>This is a simple web page.</p><form method='POST' action='/upload'><input type='text' name='text'><input type='submit' value='Upload'></form></body></html>");
   });
 
+  // 添加图片上传端点
+  server.on("/upload_image", HTTP_POST, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", "Image upload complete");
+  }, handleImageUpload);
+
   server.begin();
   Serial.println("HTTP server started");
 }
@@ -119,6 +134,55 @@ void handleTextUpload(AsyncWebServerRequest *request) {
   }
 }
 
+// 处理上传的图片数据
+void handleImageUpload(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+  static File file;
+
+  if (index == 0) {
+    Serial.printf("UploadStart: %s\n", filename.c_str());
+    // 打开文件以写入
+    file = SPIFFS.open("/" + filename, FILE_WRITE);
+    if (!file) {
+      Serial.println("Failed to open file for writing");
+      return;
+    }
+  }
+
+  // 追加数据到文件
+  if (file) {
+    file.write(data, len);
+  } else {
+    Serial.println("Failed to open file for appending");
+  }
+
+  if (final) {
+    Serial.printf("UploadEnd: %s, %u B\n", filename.c_str(), index + len);
+    file.close();
+    
+    // 从SPIFFS读取图片并在屏幕上显示
+    file = SPIFFS.open("/" + filename, FILE_READ);
+    if (file) {
+      // 使用pngle解码PNG文件
+      pngle_t *pngle = pngle_new();
+      pngle_set_draw_callback(pngle, pngle_draw_callback);
+
+      uint8_t buffer[1024];
+      int len;
+      while ((len = file.read(buffer, sizeof(buffer))) > 0) {
+        if (pngle_feed(pngle, buffer, len) < 0) {
+          Serial.printf("PNG decode error: %s\n", pngle_error(pngle));
+          break;
+        }
+      }
+
+      pngle_destroy(pngle);
+      file.close();
+    } else {
+      Serial.println("Failed to open file for reading");
+    }
+  }
+}
+
 // LVGL显示刷新回调
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
   uint16_t c;
@@ -133,4 +197,14 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
   }
   tft.endWrite();
   lv_disp_flush_ready(disp);
+}
+
+// PNG解码回调函数
+void pngle_draw_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint8_t *rgba) {
+  for (uint32_t i = 0; i < w; i++) {
+    for (uint32_t j = 0; j < h; j++) {
+      uint16_t color = tft.color565(rgba[0], rgba[1], rgba[2]);
+      tft.drawPixel(x + i, y + j, color);
+    }
+  }
 }
