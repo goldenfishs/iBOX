@@ -35,7 +35,7 @@ void initDisplay() {
   lv_disp_drv_register(&disp_drv);
 
   lv_obj_t *label = lv_label_create(lv_scr_act());
-  lv_label_set_text(label, "Hello, LVGL!");
+  lv_label_set_text(label, "Initialising...");
   lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 }
 

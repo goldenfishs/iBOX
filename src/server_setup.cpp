@@ -3,11 +3,13 @@
 #include <Arduino.h>
 #include "server_setup.h"
 #include "display_setup.h"
-#include <pngle.h> // 确保包含 pngle 库的头文件
-#include <WiFi.h> // 确保包含 WiFi 库的头文件
+#include <pngle.h>
+#include <WiFi.h>
 #include "wifi_setup.h"
+#include "icm20600.h"
 
 AsyncWebServer server(90);
+
 
 void initServer() {
   server.on("/upload", HTTP_POST, handleTextUpload);
@@ -21,22 +23,15 @@ void initServer() {
     String json = "{\"heap\":" + String(ESP.getFreeHeap()) + ",\"cpu\":" + String(ESP.getCpuFreqMHz()) + ",\"wifi\":" + String(WiFi.RSSI()) + ",\"uptime\":" + String(millis() / 1000) + "}";
     request->send(200, "application/json", json);
   });
+  server.on("/gyro", HTTP_GET, [](AsyncWebServerRequest *request){
+    int16_t gx, gy, gz;
+    icm20600.readGyroData(&gx, &gy, &gz);
+    String json = "{\"gx\":" + String(gx) + ",\"gy\":" + String(gy) + ",\"gz\":" + String(gz) + "}";
+    request->send(200, "application/json", json);
+  });
 
   server.begin();
   Serial.println("HTTP server started");
-  //使用屏幕居中显示IP地址
-    tft.setRotation(1);
-    tft.fillScreen(ST77XX_BLACK);
-    tft.setTextSize(2);
-    tft.setTextColor(ST77XX_WHITE);
-    tft.setTextWrap(true);
-    tft.setCursor(0, 0);
-    tft.print("IP Address:");
-    tft.setCursor(0, 20);
-    tft.print(WiFi.localIP().toString());
-    tft.setCursor(0, 40);
-    tft.print("IPV4 Address:");
-    tft.print(getExternalIP());
 }
 
 void handleTextUpload(AsyncWebServerRequest *request) {
@@ -44,9 +39,9 @@ void handleTextUpload(AsyncWebServerRequest *request) {
     String text = request->getParam("text", true)->value();
     Serial.printf("Received text: %s\n", text.c_str());
 
-    tft.fillScreen(ST77XX_WHITE);
+    tft.fillScreen(ST77XX_BLACK);
     tft.setTextSize(2);
-    tft.setTextColor(ST77XX_BLACK);
+    tft.setTextColor(ST77XX_WHITE);
     tft.setTextWrap(true);
 
     int16_t x1, y1;
