@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Performance Monitor</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <link rel="stylesheet" type="text/css" href="sd_card.css"> <!-- 新增的CSS文件引用 -->
+    <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+</head>
+
+<body>
+    <div class='navbar'>
+        <a href='#home'>Home</a>
+        <a href='#performance'>Performance</a>
+        <a href='#about'>About</a>
+        <a href='#IMU'>IMU</a>
+        <a href='#sdcard'>SD Card</a> <!-- 新增的导航链接 -->
+    </div>
+    <div class='container'>
+        <h1>Performance Monitor</h1>
+        <p><span class='label'>Heap Memory:</span> <span id='heap'>Loading...</span> bytes</p>
+        <p><span class='label'>CPU Frequency:</span> <span id='cpu'>Loading...</span> MHz</p>
+        <p><span class='label'>WiFi Signal Strength:</span> <span id='wifi'>Loading...</span> dBm</p>
+        <p><span class='label'>Uptime:</span> <span id='uptime'>Loading...</span></p>
+        <div class='chart-container'>
+            <canvas id='performanceChart'></canvas>
+        </div>
+        <div class='upload-form'>
+            <h2>Upload Text</h2>
+            <form id="textUploadForm">
+                <textarea id="textInput" rows="4" cols="50" placeholder="Enter text here..."></textarea><br>
+                <button type="button" onclick="uploadText()">Upload Text</button>
+            </form>
+            <h2>Upload PNG Image</h2>
+            <form id="imageUploadForm" enctype="multipart/form-data">
+                <input type="file" id="imageInput" accept="image/png"><br>
+                <button type="button" onclick="uploadImage()">Upload Image</button>
+            </form>
+        </div>
+        <div class='gyro-data'>
+            <h2>Gyro Data</h2>
+            <p><span class='label'>Temperature:</span> <span id='temp'>Loading...</span> °C</p>
+            <div class='chart-container'>
+                <canvas id='gyroChart'></canvas>
+            </div>
+        </div>
+        <div class='sd-card' id='sdcard'> <!-- 新增的SD卡操作部分 -->
+            <h2>SD Card File Manager</h2>
+            <h3>Upload File</h3>
+            <form id="fileUploadForm" enctype="multipart/form-data">
+                <input type="file" id="fileInput"><br>
+                <button type="button" onclick="uploadFile()">Upload File</button>
+            </form>
+            <h3>Read File</h3>
+            <form id="fileReadForm">
+                <input type="text" id="filePath" placeholder="Enter file path"><br>
+                <button type="button" onclick="readFile()">Read File</button>
+            </form>
+            <pre id="fileContent"></pre>
+            <h3>Delete File</h3>
+            <form id="fileDeleteForm">
+                <input type="text" id="deleteFilePath" placeholder="Enter file path"><br>
+                <button type="button" onclick="deleteFile()">Delete File</button>
+            </form>
+            <h3>TF Card Contents</h3> <!-- 新增的TF卡内容显示部分 -->
+            <button type="button" onclick="listFiles()">List Files</button>
+            <ul id="fileList"></ul>
+        </div>
+    </div>
+    <footer>&copy; 2023 Performance Monitor. All rights reserved.</footer>
+    <script src="scripts.js"></script>
+    <script src="sd_card.js"></script> <!-- 新增的JavaScript文件 -->
+</body>
+
+</html>

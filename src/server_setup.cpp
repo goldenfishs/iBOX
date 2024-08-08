@@ -16,6 +16,18 @@ void initServer() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html", "text/html");
   });
+  server.on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/styles.css", "text/css");
+  });
+  server.on("/scripts.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/scripts.js", "application/javascript");
+  });
+  server.on("/sd_card.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/sd_card.css", "text/css");
+  });
+  server.on("/sd_card.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/sd_card.js", "application/javascript");
+  });
   server.on("/upload_image", HTTP_POST, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", "Image upload complete");
   }, handleImageUpload);
@@ -23,12 +35,14 @@ void initServer() {
     String json = "{\"heap\":" + String(ESP.getFreeHeap()) + ",\"cpu\":" + String(ESP.getCpuFreqMHz()) + ",\"wifi\":" + String(WiFi.RSSI()) + ",\"uptime\":" + String(millis() / 1000) + "}";
     request->send(200, "application/json", json);
   });
-  server.on("/gyro", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/IMU", HTTP_GET, [](AsyncWebServerRequest *request){
     int16_t gx, gy, gz;
     icm20600.readGyroData(&gx, &gy, &gz);
-    String json = "{\"gx\":" + String(gx) + ",\"gy\":" + String(gy) + ",\"gz\":" + String(gz) + "}";
+    float temperature = icm20600.readTemperature();
+    String json = "{\"gx\":" + String(gx) + ",\"gy\":" + String(gy) + ",\"gz\":" + String(gz) + ",\"temp\":" + String(temperature) + "}";
     request->send(200, "application/json", json);
   });
+
 
   server.begin();
   Serial.println("HTTP server started");

@@ -6,6 +6,8 @@
 #define PWR_MGMT_1 0x6B
 #define ACCEL_XOUT_H 0x3B
 #define GYRO_XOUT_H 0x43
+#define TEMP_OUT_H 0x41
+#define TEMP_OUT_L 0x42
 
 #define ICM20600_ADDR 0x68 // 更新地址为 0x68
 
@@ -125,6 +127,13 @@ void ICM20600::readGyroData(int16_t* gx, int16_t* gy, int16_t* gz) {
     }
 }
 
+// 读取陀螺仪温度数据
+float ICM20600::readTemperature() {
+    int16_t tempRaw = (readRegister(TEMP_OUT_H) << 8) | readRegister(TEMP_OUT_L);
+    float tempC = (tempRaw / 326.8) + 25.0; // 根据数据手册的公式计算温度
+    return tempC;
+}
+
 // 检查设备是否连接
 bool ICM20600::isConnected() {
     uint8_t whoAmI = readRegister(WHO_AM_I);
@@ -133,19 +142,3 @@ bool ICM20600::isConnected() {
     return whoAmI == 0x11; // WHO_AM_I 寄存器的默认值为 0x11
 }
 
-// 计算里程计数据
-void ICM20600::calculateOdometry(float* distance, float* angle) {
-    int16_t ax, ay, az;
-    int16_t gx, gy, gz;
-
-    readAccelData(&ax, &ay, &az);
-    readGyroData(&gx, &gy, &gz);
-
-    // 简单的里程计计算（假设每次调用间隔为1秒）
-    // 这里的计算只是示例，实际应用中需要根据具体情况进行调整
-    float accelX = ax / 16384.0; // 假设加速度计的量程为 ±2g
-    float gyroZ = gz / 131.0;    // 假设陀螺仪的量程为 ±250°/s
-
-    *distance += accelX * 9.81;  // 计算位移，假设每次调用间隔为1秒
-    *angle += gyroZ;             // 计算角度变化，假设每次调用间隔为1秒
-}
